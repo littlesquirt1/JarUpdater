@@ -32,7 +32,7 @@ public class Main {
             return;
         }
         try {
-            File newFile = downloadFile(new URL(args[0]), file.getParentFile());
+            File newFile = downloadFile(new URL(args[1]), file.getParentFile());
             // run the jar file
             ProcessBuilder pb = new ProcessBuilder(
                     System.getProperty("java.home") + File.separator + "bin" + File.separator + "java",

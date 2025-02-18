@@ -1,4 +1,4 @@
-package com.cody.modsyncserver;
+package com.cody.jarupdater;
 
 import javax.swing.*;
 import java.io.File;

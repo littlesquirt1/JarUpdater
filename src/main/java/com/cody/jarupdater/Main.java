@@ -2,16 +2,22 @@ package com.cody.jarupdater;
 
 import javax.swing.*;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 public class Main {
     public static void main(String[] args) {
+        // Wait for other process to stop
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            JOptionPane.showMessageDialog(null, "Failed to wait for other process to stop", "Error", JOptionPane.ERROR_MESSAGE);
+        }
 //======================================================================================================================
         // Check args
         if (args.length != 2) {
@@ -44,33 +50,21 @@ public class Main {
         // Delete old file
         if (file.exists()) {
             if (!file.delete()) {
-                JOptionPane.showMessageDialog(null, "Downloaded new file, but failed to delete the old one! The program will try to run the new file.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "Downloaded new file, but failed to delete the old one!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
         } else {
-            JOptionPane.showMessageDialog(null, "Downloaded new file, but the original file does not exist! The program will try to run the new file.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Downloaded new file, but the original file does not exist!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 //======================================================================================================================
-        // run the new jar file
-        ProcessBuilder pb = new ProcessBuilder(
-                System.getProperty("java.home") + File.separator + "bin" + File.separator + "java",
-                "-jar",
-                newFile.getAbsolutePath()
-        );
-        pb.directory(newFile.getParentFile().getParentFile());
-        try {
-            pb.start();
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Failed to run new file!", "Error", JOptionPane.ERROR_MESSAGE);
-        }
+        // Show success message
+        JOptionPane.showMessageDialog(null, "Update completed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
     }
 
     // Assumes that the directory exists and is a directory, not a file
     private static File downloadFile(URL url, File directory) {
 
-        String fileName = new File(url.getPath()).getName();
-        File outputFile = new File(directory, fileName);
 
         HttpURLConnection connection = null;
 
@@ -79,11 +73,19 @@ public class Main {
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(10000);
             connection.setReadTimeout(10000);
+
+            String fileName = getFileNameFromHeader(connection);
+            if (fileName == null) {
+                fileName = Paths.get(url.getPath()).getFileName().toString();
+            }
+
+            File outputFile = new File(directory, fileName);
+
             InputStream in = connection.getInputStream();
             Files.copy(in, outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return outputFile;
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Failed to download file " + fileName + ": " + e, "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Failed to download file: "+ e, "Error", JOptionPane.ERROR_MESSAGE);
             System.exit(1);
             return null;
         } finally {
@@ -91,5 +93,18 @@ public class Main {
                 connection.disconnect();
             }
         }
+    }
+
+    private static String getFileNameFromHeader(HttpURLConnection connection) {
+        String contentDisposition = connection.getHeaderField("Content-Disposition");
+        if (contentDisposition != null && contentDisposition.contains("filename=")) {
+            String[] parts = contentDisposition.split(";");
+            for (String part : parts) {
+                if (part.trim().startsWith("filename=")) {
+                    return part.split("=")[1].trim().replace("\"", "");
+                }
+            }
+        }
+        return null;
     }
 }

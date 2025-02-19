@@ -2,18 +2,24 @@ package com.cody.jarupdater;
 
 import javax.swing.*;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 public class Main {
     public static void main(String[] args) {
+//======================================================================================================================
+        // Check args
         if (args.length != 2) {
             System.out.println("Usage: java -jar ModSyncServer.jar <file path> <url>");
             return;
         }
+//======================================================================================================================
+        // Get old file
         File file;
         try {
             file = new File(args[0]);
@@ -21,28 +27,42 @@ public class Main {
             JOptionPane.showMessageDialog(null, "Invalid file path", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
+//======================================================================================================================
+        // Download new file
+        File newFile = null;
+        try {
+            newFile = downloadFile(new URL(args[1]), file.getParentFile());
+        } catch (MalformedURLException e) {
+            JOptionPane.showMessageDialog(null, "Failed to download file", "Error", JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
+        if (newFile == null) {
+            JOptionPane.showMessageDialog(null, "Failed to download file", "Error", JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
+//======================================================================================================================
+        // Delete old file
         if (file.exists()) {
             if (!file.delete()) {
-                JOptionPane.showMessageDialog(null, "Failed to delete file", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "Downloaded new file, but failed to delete the old one! The program will try to run the new file.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
         } else {
-            JOptionPane.showMessageDialog(null, "File does not exist", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Downloaded new file, but the original file does not exist! The program will try to run the new file.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+//======================================================================================================================
+        // run the new jar file
+        ProcessBuilder pb = new ProcessBuilder(
+                System.getProperty("java.home") + File.separator + "bin" + File.separator + "java",
+                "-jar",
+                newFile.getAbsolutePath()
+        );
+        pb.directory(newFile.getParentFile().getParentFile());
         try {
-            File newFile = downloadFile(new URL(args[1]), file.getParentFile());
-            // run the jar file
-            ProcessBuilder pb = new ProcessBuilder(
-                    System.getProperty("java.home") + File.separator + "bin" + File.separator + "java",
-                    "-jar",
-                    newFile.getAbsolutePath()
-            );
-            pb.directory(newFile.getParentFile().getParentFile());
             pb.start();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Failed to download file", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Failed to run new file!", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
